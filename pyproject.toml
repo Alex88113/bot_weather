@@ -1,0 +1,17 @@
+[project]
+name = "bot-weather"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Shurik", email = "sanya.kucheryavvyh@bk.ru" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+bot-weather = "bot_weather:main"
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13.0"]
+build-backend = "uv_build"

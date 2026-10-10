@@ -1,0 +1,15 @@
+.logs
+logs
+.log
+.txt
+*.pyc
+.env
+.venv/
+venv
+__pycache__
+.idea
+.vscode
+*.pyo
+.pytest_cache/
+.ruff_cache/
+uv.lock%                                                                                                                                    
