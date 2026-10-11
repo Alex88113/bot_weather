@@ -1,17 +1,90 @@
 [project]
-name = "bot-weather"
+name = "bot_weather"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-authors = [
-    { name = "Shurik", email = "sanya.kucheryavvyh@bk.ru" }
-]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "aiogram>=3.31.0",
+    "httpx>=0.28.1",
+    "loguru>=0.7.3",
+    "mypy>=2.4.0",
+    "pydantic>=2.13.5",
+    "ruff>=0.17.0",
+]
 
-[project.scripts]
-bot-weather = "bot_weather:main"
+# ─────────────────────────────────────────────
+# RUFF — линтер + форматтер
+# ─────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = [
+    ".venv",
+    "__pycache__",
+    ".git",
+    "build",
+    "dist",
+]
 
-[build-system]
-requires = ["uv_build>=0.12.23,<0.13.0"]
-build-backend = "uv_build"
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes (неиспользуемые импорты, переменные)
+    "I",      # isort (сортировка импортов)
+    "N",      # pep8-naming
+    "UP",     # pyupgrade (устаревший синтаксис)
+    "B",      # flake8-bugbear (потенциальные баги)
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RUF",    # ruff-specific
+    "ANN",    # flake8-annotations (требует аннотации)
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "RET",    # flake8-return
+    "TCH",    # flake8-type-checking
+]
+ignore = [
+    "E501",   # line too long (уже задан line-length)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["ANN", "ARG"]   # в тестах аннотации не обязательны
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "try_except_dir"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+
+# ─────────────────────────────────────────────
+# MYPY — статическая проверка типов
+# ─────────────────────────────────────────────
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["psutil.*", "httpx.*"]
+ignore_missing_imports = true
+
+[dependency-groups]
+dev = [
+    "pydantic-settings>=2.15.0",
+    "python-dotenv>=1.2.4",
+]
