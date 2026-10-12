@@ -18,8 +18,7 @@ async def cmd_start(message: types.Message) -> None:
 
 @router.message(Command("weather"))
 async def extradition_weather_today(message: types.Message) -> None:
-    weather = await get_weather_today(settings_bot.WEATHER_API_URL)
-    await message.answer(weather)
+    await message.answer(await get_weather_today(settings_bot.WEATHER_API_URL))
 
 @router.message(Command("help"))
 async def cmd_help(message: types.Message) -> None:
