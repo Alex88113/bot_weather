@@ -1,16 +1,17 @@
 import asyncio
 import re
-from typing import Annotated
+from typing import Annotated, LiteralString
 
 import httpx
 from bs4 import BeautifulSoup
 from httpx import Response
+from redis.asyncio import Redis
 
+from app.bot.services.redis_service import RedisClient
 from app.bot.utils.logger import logger
 
-__all__ = ["logger"]
 
-SEPARATOR = "-" * 47
+SEPARATOR: LiteralString = "-" * 47
 
 # Описание по баллам общей облачности
 CLOUDS_BY_POINTS: dict[int, str] = {
@@ -30,15 +31,11 @@ CLOUDS_BY_POINTS: dict[int, str] = {
 # Типы облаков, при которых возможен дождь
 RAIN_CLOUDS = ("Cb", "Ns")
 
-_client: Annotated[
-    httpx.AsyncClient | None, "Асинхронный клиент для отправки http запросов"
-] = None
+_client: Annotated[httpx.AsyncClient | None, "Асинхронный клиент для отправки http запросов"] = None
 
 _client_lock: asyncio.Lock = asyncio.Lock()
 
-semaphore: Annotated[asyncio.Semaphore, "Ограничитель запросов к API"] = (
-    asyncio.Semaphore(3)
-)
+semaphore: Annotated[asyncio.Semaphore, "Ограничитель запросов к API"] = asyncio.Semaphore(3)
 
 
 class HTTPClient:
@@ -105,7 +102,6 @@ class APIClient:
     def _clouds_to_text(clouds_raw: str) -> str:
         clouds_raw = clouds_raw.strip()
 
-        # "ясно" — без баллов
         if clouds_raw.lower() == "ясно":
             return "Ясно"
 
@@ -123,7 +119,7 @@ class APIClient:
 
         return description
 
-    async def _fetch_data(self, response: Response) -> dict[str, str]:
+    def _fetch_data(self, response: Response) -> dict[str, str]:
         soup = BeautifulSoup(response.text, "html.parser")
         rows = soup.find_all("tr")
 
@@ -147,10 +143,10 @@ class APIClient:
 
         raise ValueError("Не удалось найти данные о погоде в HTML")
 
-    async def _formatter_weather(self, data: Response) -> str:
-        data_weather = await self._fetch_data(data)
+    def _formatter_weather(self, data: Response) -> str:
+        data_weather: dict[str, str] = self._fetch_data(data)
 
-        lines_data = [
+        lines_data: list[str] = [
             f"\n{SEPARATOR}",
             "🌤️  ПОГОДА В СЕВАСТОПОЛЕ",
             SEPARATOR,
@@ -162,14 +158,33 @@ class APIClient:
         ]
         return "\n".join(lines_data)
 
-    async def get_weather(self, data: Response) -> str:
-        return await self._formatter_weather(data)
+    async def set_weather(self, redis_client: Redis, ttl: int, key: str, response: Response) -> None:
+        weather: str = self._formatter_weather(response)
+        await redis_client.set(key, weather, ex=ttl)
+        logger.info(f"Данные об погоде сохранены в кэш, новый TTL записи: {ttl} сек.")
+
+    async def update_weather(
+        self, redis_client: Redis, ttl: int, key: str, method: str, url: str
+    ) -> bytes | str | None:
+        ttl_record = await redis_client.ttl(key)
+
+        if ttl_record <= 0:
+            logger.warning("Данные об погоде в кэше устарели, обновляем.")
+            response = await self.send_request(method, url)
+            result_formatter = self._formatter_weather(response)
+            await redis_client.set(key, result_formatter, ex=ttl)
+            logger.info(f"Данные о погоде обновлены!\nНовый TTL: {ttl} сек.")
+
+        logger.info("Запись в кэше актуальна")
+        logger.info(f"Оставшиеся TTL: {ttl_record} sec.")
+        return await redis_client.get(key)
 
 
-async def get_weather_today(url: str) -> str:
-    async with HTTPClient() as client:
-        api_client = APIClient(client)
-        response = await api_client.send_request("GET", url)
-        result = await api_client.get_weather(response)
-
-    return result
+async def get_weather_today(url: str) -> bytes | str | None:
+    async with HTTPClient() as client, RedisClient("localhost", 6379) as redis_client:
+        api_client: APIClient = APIClient(client)
+        result_update_weather: bytes | str | None = await api_client.update_weather(
+            redis_client, 900, "weather:sevastopol", "GET", url
+        )
+        print(result_update_weather)
+    return result_update_weather
