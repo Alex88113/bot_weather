@@ -174,9 +174,3 @@ async def update_weather(url: str, redis_client: Redis, key: str, ttl: int) -> s
     await redis_client.set(key, data_weather, ex=ttl)
     logger.info(f"Данные успешно обновлены!\nНовый TTL: {ttl} сек.")
     return data_weather
-
-async def main():
-    async with RedisClient() as redis_client:
-        print(await update_weather("https://pogodaiklimat.ru/weather.php?id=33991", redis_client, "weather:sevastopol", 900))
-
-asyncio.run(main())
