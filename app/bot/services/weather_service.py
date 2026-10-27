@@ -10,7 +10,6 @@ from redis.asyncio import Redis
 from app.bot.services.redis_service import RedisClient
 from app.bot.utils.logger import logger
 
-
 SEPARATOR: LiteralString = "-" * 47
 
 # Описание по баллам общей облачности
@@ -73,7 +72,6 @@ class HTTPClient:
             if _client:
                 await _client.aclose()
                 _client = None
-
 
 class APIClient:
     def __init__(self, client: httpx.AsyncClient) -> None:
@@ -158,33 +156,27 @@ class APIClient:
         ]
         return "\n".join(lines_data)
 
-    async def set_weather(self, redis_client: Redis, ttl: int, key: str, response: Response) -> None:
-        weather: str = self._formatter_weather(response)
-        await redis_client.set(key, weather, ex=ttl)
-        logger.info(f"Данные об погоде сохранены в кэш, новый TTL записи: {ttl} сек.")
+async def update_weather(url: str, redis_client: Redis, key: str, ttl: int) -> str:
+    ttl_record: int = await redis_client.ttl(key)
 
-    async def update_weather(
-        self, redis_client: Redis, ttl: int, key: str, method: str, url: str
-    ) -> bytes | str | None:
-        ttl_record = await redis_client.ttl(key)
+    if ttl_record > 0:
+        cache = await redis_client.get(key)
+        if cache:
+            logger.info(f"Кэш актуален. его TTL: {ttl_record} сек.")
+            return cache
 
-        if ttl_record <= 0:
-            logger.warning("Данные об погоде в кэше устарели, обновляем.")
-            response = await self.send_request(method, url)
-            result_formatter = self._formatter_weather(response)
-            await redis_client.set(key, result_formatter, ex=ttl)
-            logger.info(f"Данные о погоде обновлены!\nНовый TTL: {ttl} сек.")
+    logger.warning("Данные не актуальны, обновляем..")
+    async with HTTPClient() as client:
+        api_client = APIClient(client)
+        response = await api_client.send_request("GET", url)
+        data_weather = api_client._formatter_weather(response)
 
-        logger.info("Запись в кэше актуальна")
-        logger.info(f"Оставшиеся TTL: {ttl_record} sec.")
-        return await redis_client.get(key)
+    await redis_client.set(key, data_weather, ex=ttl)
+    logger.info(f"Данные успешно обновлены!\nНовый TTL: {ttl} сек.")
+    return data_weather
 
+async def main():
+    async with RedisClient() as redis_client:
+        print(await update_weather("https://pogodaiklimat.ru/weather.php?id=33991", redis_client, "weather:sevastopol", 900))
 
-async def get_weather_today(url: str) -> bytes | str | None:
-    async with HTTPClient() as client, RedisClient("localhost", 6379) as redis_client:
-        api_client: APIClient = APIClient(client)
-        result_update_weather: bytes | str | None = await api_client.update_weather(
-            redis_client, 900, "weather:sevastopol", "GET", url
-        )
-        print(result_update_weather)
-    return result_update_weather
+asyncio.run(main())

@@ -15,6 +15,9 @@ class BotConfig(BaseSettings):
     )
 
     WEATHER_API_URL: str
+    REDIS_HOST: str
+    REDIS_PORT: int
+
     BOT_TOKEN: SecretStr
 
     def get_bot_token(self) -> str:

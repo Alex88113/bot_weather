@@ -1,19 +1,16 @@
 from redis.asyncio import ConnectionPool, Redis
 
 from app.bot.utils.logger import logger
+from app.bot.configs.bot_config import settings_bot
 
-__all__ = ["logger"]
 
 redis_client: Redis | None = None
-
-SEPARATORS = "=" * 40
-
 
 class RedisClient:
     def __init__(
         self,
-        host: str,
-        port: int,
+        host: str = settings_bot.REDIS_HOST,
+        port: int = settings_bot.REDIS_PORT,
         decode_responses: bool = True,
         max_connections: int = 10,
         socket_connect_timeout: int = 20,
@@ -29,7 +26,7 @@ class RedisClient:
         self.retry_on_timeout = retry_on_timeout
 
     async def __aenter__(self) -> Redis:
-        logger.info("Подготовливаем Redis клиент")
+        logger.info("Подготавливаем Redis клиент")
         global redis_client
         if redis_client is None:
             pool = ConnectionPool.from_url(
@@ -41,10 +38,7 @@ class RedisClient:
                 retry_on_timeout=self.retry_on_timeout,
             )
 
-            redis_client = Redis(
-                connection_pool=pool,
-                decode_responses=self.decode_responses,
-            )
+            redis_client = Redis(connection_pool=pool)
             logger.info("Клиент создан.")
             logger.debug(f"Connect to redis is install, Port={self.port}, Host={self.host}")
 

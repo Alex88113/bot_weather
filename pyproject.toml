@@ -9,7 +9,11 @@ dependencies = [
     "loguru>=0.7.3",
     "mypy>=2.4.0",
     "pydantic>=2.13.5",
+    "pytest-asyncio>=1.4.1",
+    "pytest-mock>=3.17.0",
+    "pytest[asyncio]>=9.1.1",
     "redis>=8.1.0",
+    "respx>=0.23.1",
     "ruff>=0.17.0",
 ]
 
@@ -91,3 +95,5 @@ dev = [
     "pydantic-settings>=2.15.0",
     "python-dotenv>=1.2.4",
 ]
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
