@@ -2,6 +2,7 @@ aiogram
 httpx
 pydantic
 loguru
-pydanitc-settings
+pydantic-settings
 python-dotenv
 beautifulsoup4
+redis

@@ -1,22 +1,27 @@
+from typing import Annotated
+from collections.abc import AsyncGenerator
+
 import pytest
 from httpx import AsyncClient, Response
 import respx
 from respx import Route
 import httpx
-from app.bot.services.weather_service import HTTPClient, APIClient
 
-type ResultType = None
+from app.bot.services.weather_service import HTTPClient, APIClient
 
 
 @pytest.fixture
-async def async_http_client():
+async def async_http_client() -> AsyncGenerator[AsyncClient, None]:
     async with HTTPClient() as client:
         yield client
 
 
+type async_client_type = Annotated[AsyncClient, "Асинхронный HTTP клиент"]
+
+
 class TestWeatherAPI:
     @respx.mock
-    async def test_send_request_get(self, async_http_client) -> ResultType:
+    async def test_send_request_get(self, async_http_client: async_client_type) -> None:
         route: Route = respx.get("https://pogodaiklimat.ru/weather.php?id=33991").mock(
             return_value=Response(status_code=200)
         )
@@ -33,7 +38,7 @@ class TestWeatherAPI:
         assert any(headers for headers["content-type"] in response_format)
 
     @respx.mock
-    async def test_send_request_successful(self, async_http_client) -> ResultType:
+    async def test_send_request_successful(self, async_http_client: async_client_type) -> None:
         route = respx.get("https://pogodaiklimat.ru/weather.php?id=33991").mock(
             return_value=Response(status_code=200)
         )
@@ -49,7 +54,7 @@ class TestWeatherAPI:
         assert isinstance(response, Response)
 
     @pytest.mark.asyncio
-    async def test_response_format(self, async_http_client: AsyncClient) -> ResultType:
+    async def test_response_format(self, async_http_client: async_client_type) -> None:
         api_client = APIClient(async_http_client)
         response: Response = await api_client.send_request(
             "GET", "https://pogodaiklimat.ru/weather.php?id=33991"
@@ -63,8 +68,8 @@ class TestWeatherAPI:
 
 class TestException:
     @pytest.mark.asyncio
-    async def test_send_request_connect_error(self, async_http_client) -> ResultType:
-        api_client = APIClient(async_http_client)
+    async def test_send_request_connect_error(self, async_http_client: async_client_type) -> None:
+        api_client: APIClient = APIClient(async_http_client)
 
         with respx.mock:
             respx.get("https://pogodaiklimat.ru/weather.php?id=33991").mock(
