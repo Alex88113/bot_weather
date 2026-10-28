@@ -1,0 +1,45 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    develop:
+      watch:
+        - action: sync+restart
+          path: .
+          target: /code
+        - action: rebuild
+          path: requirements.txt
+    networks:
+      - app_network
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512MB
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - app_network
+
+volumes:
+  redis_data:
+
+networks:
+  app_network:
+    driver: bridge
