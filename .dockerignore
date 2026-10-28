@@ -1,0 +1,67 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ===== Виртуальные окружения =====
+.venv/
+venv/
+env/
+ENV/
+
+# ===== Тесты и покрытие =====
+tests/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Логи =====
+logs/
+*.log
+app/logs/
+app/bot/logs/
+app/bot/services/logs/
+app/bot/utils/logs/
+
+# ===== Секреты и конфиги =====
+.env
+.env.*
+!.env.example
+
+# ===== Git =====
+.git/
+.gitignore
+.gitattributes
+
+# ===== IDE =====
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ===== Docker =====
+Dockerfile
+.dockerignore
+docker-compose*.yml
+docker-compose*.yaml
+
+# ===== Документация =====
+README.md
+docs/
+*.md
+
+# ===== Прочее =====
+.DS_Store
+Thumbs.db
+uv.lock
