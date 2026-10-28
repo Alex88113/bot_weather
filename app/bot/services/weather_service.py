@@ -1,13 +1,13 @@
 import asyncio
 import re
-from typing import Annotated, LiteralString
+from typing import Annotated, Any, LiteralString
 
 import httpx
 from bs4 import BeautifulSoup
 from httpx import Response
 from redis.asyncio import Redis
 
-from app.bot.services.redis_service import RedisClient
+from app.bot.configs.bot_config import settings_bot
 from app.bot.utils.logger import logger
 
 SEPARATOR: LiteralString = "-" * 47
@@ -52,6 +52,7 @@ class HTTPClient:
         async with _client_lock:
             if _client is None:
                 _client = httpx.AsyncClient(
+                    base_url=settings_bot.WEATHER_API_URL,
                     timeout=self._timeout,
                     limits=self._limits,
                     transport=self._transport,
@@ -63,26 +64,27 @@ class HTTPClient:
                         )
                     },
                 )
-
             return _client
 
-    async def __aexit__(self, *args: str) -> None:
+    async def __aexit__(self, *args: Any) -> None:
         global _client
         async with _client_lock:
             if _client:
                 await _client.aclose()
                 _client = None
 
+
 class APIClient:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self.client = client
 
     async def send_request(self, method: str, url: str) -> Response:
-        logger.info(f"Производится отправка [GET] запроса на: {url}")
+        logger.info(f"Производится отправка [{method}] запроса на: {url}")
         try:
-            response = await self.client.request(method, url)
-            response.raise_for_status()
-            return response
+            async with semaphore:
+                response = await self.client.request(method, url)
+                response.raise_for_status()
+                return response
         except httpx.ConnectError as error:
             logger.error(f"Не удалось установить соединение с API.\nПричина: {error}")
             raise
@@ -103,7 +105,6 @@ class APIClient:
         if clouds_raw.lower() == "ясно":
             return "Ясно"
 
-        # Извлекаем баллы: "3/3 600 м [Sc]" → 3
         match = re.match(r"^(\d+)/", clouds_raw)
         if not match:
             return "Неизвестно"
@@ -156,22 +157,30 @@ class APIClient:
         ]
         return "\n".join(lines_data)
 
-async def update_weather(url: str, redis_client: Redis, key: str, ttl: int) -> str:
+    async def get_weather(self, url: str) -> str:
+        response = await self.send_request("GET", url)
+        return self._formatter_weather(response)
+
+
+async def update_weather(
+    url: str,
+    redis_client: Redis,
+    key: str,
+    ttl: int,
+) -> str:
     ttl_record: int = await redis_client.ttl(key)
 
     if ttl_record > 0:
         cache = await redis_client.get(key)
         if cache:
             logger.info(f"Кэш актуален. его TTL: {ttl_record} сек.")
-            return cache
+            return cache.decode() if isinstance(cache, bytes) else cache
 
     logger.warning("Данные не актуальны, обновляем..")
     async with HTTPClient() as client:
         api_client = APIClient(client)
-        response = await api_client.send_request("GET", url)
-        data_weather = api_client._formatter_weather(response)
+        data_weather: str = await api_client.get_weather(url)
 
     await redis_client.set(key, data_weather, ex=ttl)
     logger.info(f"Данные успешно обновлены!\nНовый TTL: {ttl} сек.")
     return data_weather
-
