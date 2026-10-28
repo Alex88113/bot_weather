@@ -1,0 +1,15 @@
+[Unit]
+Description=Telegram bot for parsing weather
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=idle
+Restart=always
+RestartSec=3
+User=shurik
+WorkingDirectory=/mnt/c/Users/Shurik/projects/bot_weather/
+ExecStart=/usr/bin/docker compose up -d --build
+
+[Install]
+WantedBy=multi-user.target
