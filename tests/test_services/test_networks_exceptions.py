@@ -1,3 +1,5 @@
+from collections.abc import AsyncGenerator
+
 import respx
 import pytest
 from httpx import AsyncClient
@@ -6,44 +8,34 @@ import httpx
 from app.bot.services.weather_service import HTTPClient, APIClient
 from app.bot.configs.bot_config import settings_bot
 
+
+@pytest.fixture
+async def async_http_client() -> AsyncGenerator[AsyncClient, None]:
+    async with HTTPClient() as client:
+        yield client
+
+
+@pytest.fixture
+async def return_api_client(async_http_client: AsyncClient) -> APIClient:
+    api_client = APIClient(async_http_client)
+    return api_client
+
+
+@pytest.fixture
+async def weather_url() -> str:
+    return settings_bot.WEATHER_API_URL
+
+
 class TestTimeoutException:
-    @pytest.fixture
-    async def async_http_client(self):
-        async with HTTPClient() as client:
-            yield client
-
-    @pytest.fixture
-    async def return_api_client(self, async_http_client: AsyncClient) -> "APIClient":
-        api_client = APIClient(async_http_client)
-        return api_client
-
-    @pytest.fixture
-    async def weather_url(self) -> str:
-        return settings_bot.WEATHER_API_URL
-
     @respx.mock
     async def test_timeout(self, return_api_client, weather_url) -> None:
         respx.get(weather_url).mock(side_effect=httpx.TimeoutException("timed out"))
 
         with pytest.raises(httpx.TimeoutException):
-            await return_api_client.send_request('GET', weather_url)
+            await return_api_client.send_request("GET", weather_url)
 
 
 class TestConnectError:
-    @pytest.fixture
-    async def async_http_client(self):
-        async with HTTPClient() as client:
-            yield client
-
-    @pytest.fixture
-    async def return_api_client(self, async_http_client: AsyncClient) -> "APIClient":
-        api_client = APIClient(async_http_client)
-        return api_client
-
-    @pytest.fixture
-    async def weather_url(self) -> str:
-        return settings_bot.WEATHER_API_URL
-
     @respx.mock
     async def test_connect_exception(self, return_api_client, weather_url) -> None:
         respx.get(weather_url).mock(side_effect=httpx.ConnectError("Mock Error"))
@@ -53,25 +45,9 @@ class TestConnectError:
 
 
 class TestHTTPStatusError:
-    @pytest.fixture
-    async def async_http_client(self):
-        async with HTTPClient() as client:
-            yield client
-
-    @pytest.fixture
-    async def return_api_client(self, async_http_client: AsyncClient) -> "APIClient":
-        api_client = APIClient(async_http_client)
-        return api_client
-
-    @pytest.fixture
-    async def weather_url(self) -> str:
-        return settings_bot.WEATHER_API_URL
-
     @respx.mock
     async def test_http_status_503_error(
-           self,
-           return_api_client: APIClient,
-           weather_url: str
+        self, return_api_client: APIClient, weather_url: str
     ) -> None:
         respx.get(weather_url).mock(return_value=httpx.Response(503))
 
@@ -80,9 +56,7 @@ class TestHTTPStatusError:
 
     @respx.mock
     async def test_http_status_404_error(
-           self,
-           return_api_client: APIClient,
-           weather_url: str
+        self, return_api_client: APIClient, weather_url: str
     ) -> None:
         respx.get(weather_url).mock(return_value=httpx.Response(404))
 
@@ -92,9 +66,7 @@ class TestHTTPStatusError:
 
     @respx.mock
     async def test_http_status_402_error(
-           self,
-           return_api_client: APIClient,
-           weather_url: str
+        self, return_api_client: APIClient, weather_url: str
     ) -> None:
         respx.get(weather_url).mock(return_value=httpx.Response(402))
 
