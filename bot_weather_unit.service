@@ -1,6 +1,6 @@
 [Unit]
 Description=Telegram bot for parsing weather
-After=network.target docker.service
+After=docker.service
 Requires=docker.service
 
 [Service]
